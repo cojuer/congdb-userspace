@@ -1,18 +1,16 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 namespace congdb {
 
 struct tcp_sock_data {
     uint32_t loc_ip;
-    uint32_t loc_port;
     uint32_t rem_ip;
-    uint32_t rem_port;
 
-	operator std::string() {
-		return std::to_string(loc_ip) + ":" + std::to_string(loc_port) + "-" +
-			   std::to_string(rem_ip) + ":" + std::to_string(rem_port);
+	operator std::string() const {
+		return std::to_string(loc_ip) + "-" + std::to_string(rem_ip);
 	}
 };
 
@@ -20,14 +18,11 @@ struct congdb_entry {
     tcp_sock_data stats;
     char* ca_name;
 
-	operator std::string() {
+	operator std::string() const {
 		return static_cast<std::string>(stats) + std::string(ca_name);
 	}
 };
 
-struct congdb_data {
-    size_t size;
-    congdb_entry *entries;
-};
+using congdb_data = std::vector<congdb_entry>; 
 
 } /* congdb namespace */

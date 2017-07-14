@@ -12,6 +12,8 @@
 #include <libnl3/netlink/genl/ctrl.h>
 #include <libnl3/netlink/genl/genl.h>
 
+#include <arpa/inet.h>
+
 #include "kernel_api.hpp"
 
 namespace congdb {
@@ -21,49 +23,52 @@ static CONGDBKernelAPI kernel_api;
 static uint32_t str_ip_to_uint(const char* str_ip)
 {
 	uint32_t ip;
-	//if (!in4_pton(str_ip, -1, (u8*)&ip, -1, NULL))
-	//	return 0;
-	return ip;
+	if (inet_pton(AF_INET, str_ip, (uint32_t*)&ip) == 1) {
+		return ip;
+	}
+	return 0;
 }
-
-constexpr auto argc_to_add = 6;
+/*
+static std::string uint_to_str_ip(uint32_t bin_ip)
+{
+	char* str_ip;
+	if (!inet_ntop(AF_INET, bin_ip, str_ip)) 
+		return 0;
+	return str_ip;
+}
+*/
+constexpr auto argc_to_add = 5;
 int add_entry(int argc, char **argv) {
 	if (argc != argc_to_add) {
 		std::cout << "Usage: " << argv[0]
-			<< " <local_ip> <local_port> <remote_ip> <remote_port> <cong_algo>" << std::endl;
+			<< " <local_ip> <remote_ip> <cong_algo>" << std::endl;
 		return -1;
 	}
-	tcp_sock_data sock_data = {
-		str_ip_to_uint(argv[2]),
-		std::stoul(argv[3]),
-		str_ip_to_uint(argv[4]),
-		std::stoul(argv[5])
-	};
-	std::string ca_name = argv[6];
+	tcp_sock_data sock_data;
+	sock_data.loc_ip = str_ip_to_uint(argv[2]);
+	sock_data.rem_ip = str_ip_to_uint(argv[3]);
+	std::string ca_name = argv[4];
 	kernel_api.add_entry(sock_data, ca_name);
 	return 0;
 }
 
-constexpr auto argc_to_del = 5;
+constexpr auto argc_to_del = 4;
 int del_entry(int argc, char **argv) {
 	if (argc != argc_to_del) {
 		std::cout << "Usage: " << argv[0]
-			<< " <local_ip> <local_port> <remote_ip> <remote_port>" << std::endl;
+			<< " <local_ip> <remote_ip>" << std::endl;
 		return -1;
 	}
-	tcp_sock_data sock_data = {
-		str_ip_to_uint(argv[2]),
-		std::stoul(argv[3]),
-		str_ip_to_uint(argv[4]),
-		std::stoul(argv[5])	
-	};
+	tcp_sock_data sock_data;
+	sock_data.loc_ip = str_ip_to_uint(argv[2]);
+	sock_data.rem_ip = str_ip_to_uint(argv[3]);
 	kernel_api.del_entry(sock_data);
 	return 0;
 }
 
 int run_db_op(int argc, char **argv) 
 {
-	if (argc != 2) {
+	if (argc < 2) {
 		std::cout << "Usage: " << argv[0] << " " << argv[1] << std::endl;
 		return -EINVAL;
 	}
@@ -75,12 +80,14 @@ int run_db_op(int argc, char **argv)
 	else if (cmd == "del-entry") {
 		del_entry(argc, argv);
 	}
-	else if (cmd == "clear-remotes") {
+	else if (cmd == "clear-entries") {
 		kernel_api.clear_entries();
 	}
-	else if (cmd == "list-remotes") {
+	else if (cmd == "list-entries") {
 		auto entries = kernel_api.list_entries();
-		
+		for (auto& entry : entries) {
+			std::cout << std::string(entry) << std::endl;
+		}
 	}
 	return 0;
 }

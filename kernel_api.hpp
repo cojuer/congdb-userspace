@@ -33,9 +33,7 @@ enum congdb_nl_attrs {
 	CONGDB_A_UNSPEC,
     
     CONGDB_A_LOC_IP,
-    CONGDB_A_LOC_PORT,
     CONGDB_A_REM_IP,
-    CONGDB_A_REM_PORT,
 
     CONGDB_A_CA,
 
