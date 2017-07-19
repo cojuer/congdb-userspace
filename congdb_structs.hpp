@@ -19,7 +19,7 @@ struct congdb_entry {
     char* ca_name;
 
 	operator std::string() const {
-		return static_cast<std::string>(stats) + std::string(ca_name);
+		return static_cast<std::string>(stats) + std::string(":") + std::string(ca_name);
 	}
 };
 

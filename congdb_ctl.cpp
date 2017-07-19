@@ -28,15 +28,7 @@ static uint32_t str_ip_to_uint(const char* str_ip)
 	}
 	return 0;
 }
-/*
-static std::string uint_to_str_ip(uint32_t bin_ip)
-{
-	char* str_ip;
-	if (!inet_ntop(AF_INET, bin_ip, str_ip)) 
-		return 0;
-	return str_ip;
-}
-*/
+
 constexpr auto argc_to_add = 5;
 int add_entry(int argc, char **argv) {
 	if (argc != argc_to_add) {
