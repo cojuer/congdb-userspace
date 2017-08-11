@@ -93,10 +93,14 @@ int del_entry(int argc, char **argv) {
         return -1;
     }
     tcp_sock_data sock_data;
-    sock_data.loc_ip = str_ip_to_uint(argv[2]);
-    sock_data.rem_ip = str_ip_to_uint(argv[3]);
-    sock_data.loc_mask = UINT_MAX;
-    sock_data.rem_mask = UINT_MAX;
+    auto loc_addr = str_to_ip_addr(argv[2]);
+    sock_data.loc_ip = loc_addr.ip;
+    sock_data.loc_mask = loc_addr.mask;
+    
+    auto rem_addr = str_to_ip_addr(argv[3]);
+    sock_data.rem_ip = rem_addr.ip;
+    sock_data.rem_mask = rem_addr.mask;
+    
     sock_data.priority = 0;
     kernel_api.del_entry(sock_data);
     return 0;
