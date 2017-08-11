@@ -3,6 +3,7 @@
 #include <memory>
 #include <unordered_map>
 #include <vector>
+#include <climits>
 
 #include <libnl3/netlink/attr.h>
 #include <libnl3/netlink/handlers.h>
@@ -22,87 +23,130 @@ static CONGDBKernelAPI kernel_api;
 
 static uint32_t str_ip_to_uint(const char* str_ip)
 {
-	uint32_t ip;
-	if (inet_pton(AF_INET, str_ip, (uint32_t*)&ip) == 1) {
-		return ip;
-	}
-	return 0;
+    uint32_t ip;
+    if (inet_pton(AF_INET, str_ip, (uint32_t*)&ip) == 1) {
+        return ip;
+    }
+    return 0;
+}
+
+struct ip_addr
+{
+    uint32_t ip;
+    uint32_t mask;
+};
+
+ip_addr str_to_ip_addr(char* input)
+{
+    auto separator = strchr(input, '/');
+    if (separator) {
+        auto iplen = separator - input;
+        auto ipbuf = (char*)malloc(iplen + 1);
+        memcpy(ipbuf, input, iplen);
+        ipbuf[iplen] = 0;
+        auto masklen = strlen(input) - strlen(ipbuf);
+        auto maskbuf = (char*)malloc(masklen + 1);
+        memcpy(maskbuf, separator + 1, masklen);
+        maskbuf[masklen] = 0;
+        uint32_t mask = 0;
+        for (int i = 0; i < atoi(maskbuf); ++i)
+        {
+            mask += 1 << i;
+        }
+        ip_addr result{ str_ip_to_uint(ipbuf), mask };
+        free(ipbuf);
+        free(maskbuf);
+        return result;
+    }
+    else {
+        return { str_ip_to_uint(input), UINT_MAX };
+    }
 }
 
 constexpr auto argc_to_add = 5;
 int add_entry(int argc, char **argv) {
-	if (argc != argc_to_add) {
-		std::cout << "Usage: " << argv[0]
-			<< " <local_ip> <remote_ip> <cong_algo>" << std::endl;
-		return -1;
-	}
-	tcp_sock_data sock_data;
-	sock_data.loc_ip = str_ip_to_uint(argv[2]);
-	sock_data.rem_ip = str_ip_to_uint(argv[3]);
-	std::string ca_name = argv[4];
-	kernel_api.add_entry(sock_data, ca_name);
-	return 0;
+    if (argc != argc_to_add) {
+        std::cout << "Usage: " << argv[0]
+            << " <local_ip> <remote_ip> <cong_algo>" << std::endl;
+        return -1;
+    }
+    tcp_sock_data sock_data;
+    auto loc_addr = str_to_ip_addr(argv[2]);
+    sock_data.loc_ip = loc_addr.ip;
+    sock_data.loc_mask = loc_addr.mask;
+    
+    auto rem_addr = str_to_ip_addr(argv[3]);
+    sock_data.rem_ip = rem_addr.ip;
+    sock_data.rem_mask = rem_addr.mask;
+    
+    sock_data.priority = 0;
+    std::string ca_name = argv[4];
+    kernel_api.add_entry(sock_data, ca_name);
+    return 0;
 }
 
 constexpr auto argc_to_del = 4;
 int del_entry(int argc, char **argv) {
-	if (argc != argc_to_del) {
-		std::cout << "Usage: " << argv[0]
-			<< " <local_ip> <remote_ip>" << std::endl;
-		return -1;
-	}
-	tcp_sock_data sock_data;
-	sock_data.loc_ip = str_ip_to_uint(argv[2]);
-	sock_data.rem_ip = str_ip_to_uint(argv[3]);
-	kernel_api.del_entry(sock_data);
-	return 0;
+    if (argc != argc_to_del) {
+        std::cout << "Usage: " << argv[0]
+            << " <local_ip> <remote_ip>" << std::endl;
+        return -1;
+    }
+    tcp_sock_data sock_data;
+    sock_data.loc_ip = str_ip_to_uint(argv[2]);
+    sock_data.rem_ip = str_ip_to_uint(argv[3]);
+    sock_data.loc_mask = UINT_MAX;
+    sock_data.rem_mask = UINT_MAX;
+    sock_data.priority = 0;
+    kernel_api.del_entry(sock_data);
+    return 0;
 }
 
 int run_db_op(int argc, char **argv) 
 {
-	if (argc < 2) {
-		std::cout << "Usage: " << argv[0] << " " << argv[1] << std::endl;
-		return -EINVAL;
-	}
+    if (argc < 2) {
+        std::cout << "Usage: " << argv[0] << " " << argv[1] << std::endl;
+        return -EINVAL;
+    }
 
-	std::string cmd{ argv[1] };
-	if (cmd == "add-entry") {
-		add_entry(argc, argv);
-	}
-	else if (cmd == "del-entry") {
-		del_entry(argc, argv);
-	}
-	else if (cmd == "clear-entries") {
-		kernel_api.clear_entries();
-	}
-	else if (cmd == "list-entries") {
-		auto entries = kernel_api.list_entries();
-		for (auto& entry : entries) {
-			std::cout << std::string(entry) << std::endl;
-		}
-	}
-	return 0;
+    std::string cmd{ argv[1] };
+    if (cmd == "add-entry") {
+        add_entry(argc, argv);
+    }
+    else if (cmd == "del-entry") {
+        del_entry(argc, argv);
+    }
+    else if (cmd == "clear-entries") {
+        kernel_api.clear_entries();
+    }
+    else if (cmd == "list-entries") {
+        auto entries = kernel_api.list_entries();
+        for (auto& entry : entries) {
+            std::cout << std::string(entry) << std::endl;
+        }
+    }
+    return 0;
 }
 
 } /* congdb namespace */
 
 int main(int argc, char **argv) {
     using Handler = std::function<int(int, char**)>;
-	const std::unordered_map<std::string, Handler> commands = {
-		{"list-entries",  congdb::run_db_op},
-		{"add-entry",     congdb::run_db_op},
-		{"del-entry",     congdb::run_db_op},
-		{"clear-entries", congdb::run_db_op},
-	};
+    const std::unordered_map<std::string, Handler> commands = {
+        {"list-entries",  congdb::run_db_op},
+        {"add-entry",     congdb::run_db_op},
+        {"del-entry",     congdb::run_db_op},
+        {"clear-entries", congdb::run_db_op},
+    };
 
-	if (argc > 1 && commands.count(argv[1])) {
-		return commands.at(argv[1])(argc, argv);
-	}
+    if (argc > 1 && commands.count(argv[1])) {
+        return commands.at(argv[1])(argc, argv);
+    }
 
-	std::cout << "Usage: " << argv[0] << " <command> <options>" << std::endl;
-	std::cout << "Supported commands:" << std::endl;
-	for(auto& pair : commands) {
-		std::cout << pair.first << std::endl;
-	}
-	return -1;
+    std::cout << "Usage: " << argv[0] << " <command> <options>" << std::endl;
+    std::cout << "Supported commands:" << std::endl;
+    for(auto& pair : commands) {
+        std::cout << pair.first << std::endl;
+    }
+    return -1;
 }
