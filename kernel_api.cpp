@@ -25,23 +25,23 @@ CONGDBKernelAPI::CONGDBKernelAPI()
     }
 }
 
-void CONGDBKernelAPI::add_entry(const tcp_sock_data& sock_data, 
+void CONGDBKernelAPI::add_entry(const rule_id& id, 
                                 const std::string& ca_name) 
 {
-    std::cout << "add entry " << std::string(sock_data) << std::endl;
+    std::cout << "add entry " << std::string(id) << std::endl;
     std::shared_ptr<nl_msg> msg = {nlmsg_alloc(), nlmsg_free};
     const int flags = NLM_F_REQUEST | NLM_F_ACK;
     if (!genlmsg_put(msg.get(), NL_AUTO_PID, NL_AUTO_SEQ, m_fam_id, 0, flags, CONGDB_C_ADD_ENTRY, VERSION))
         throw std::runtime_error("Failed to put message");
-    if (nla_put_u32(msg.get(), CONGDB_A_LOC_IP, sock_data.loc_ip) < 0)
+    if (nla_put_u32(msg.get(), CONGDB_A_LOC_IP, id.loc_ip) < 0)
         throw std::runtime_error("Failed to put local ip");
-    if (nla_put_u32(msg.get(), CONGDB_A_LOC_MASK, sock_data.loc_mask) < 0)
+    if (nla_put_u32(msg.get(), CONGDB_A_LOC_MASK, id.loc_mask) < 0)
         throw std::runtime_error("Failed to put local mask");
-    if (nla_put_u32(msg.get(), CONGDB_A_REM_IP, sock_data.rem_ip) < 0)
+    if (nla_put_u32(msg.get(), CONGDB_A_REM_IP, id.rem_ip) < 0)
         throw std::runtime_error("Failed to put remote ip");
-    if (nla_put_u32(msg.get(), CONGDB_A_REM_MASK, sock_data.rem_mask) < 0)
+    if (nla_put_u32(msg.get(), CONGDB_A_REM_MASK, id.rem_mask) < 0)
         throw std::runtime_error("Failed to put remote mask");
-    if (nla_put_u8(msg.get(), CONGDB_A_PRIORITY, sock_data.priority) < 0)
+    if (nla_put_u8(msg.get(), CONGDB_A_PRIORITY, id.priority) < 0)
         throw std::runtime_error("Failed to put priority");
     if (nla_put_string(msg.get(), CONGDB_A_CA, ca_name.c_str()) < 0)
         throw std::runtime_error("Failed to put congestion algorithm name");
@@ -50,21 +50,21 @@ void CONGDBKernelAPI::add_entry(const tcp_sock_data& sock_data,
     nl_wait_for_ack(m_sock);
 }
 
-void CONGDBKernelAPI::del_entry(const tcp_sock_data& sock_data) 
+void CONGDBKernelAPI::del_entry(const rule_id& id) 
 {
     std::shared_ptr<nl_msg> msg = {nlmsg_alloc(), nlmsg_free};
     const int flags = NLM_F_REQUEST | NLM_F_ACK;
     if (!genlmsg_put(msg.get(), NL_AUTO_PID, NL_AUTO_SEQ, m_fam_id, 0, flags, CONGDB_C_DEL_ENTRY, VERSION))
         throw std::runtime_error("Failed to put message");
-    if (nla_put_u32(msg.get(), CONGDB_A_LOC_IP, sock_data.loc_ip) < 0)
+    if (nla_put_u32(msg.get(), CONGDB_A_LOC_IP, id.loc_ip) < 0)
         throw std::runtime_error("Failed to put local ip");
-    if (nla_put_u32(msg.get(), CONGDB_A_LOC_MASK, sock_data.loc_mask) < 0)
+    if (nla_put_u32(msg.get(), CONGDB_A_LOC_MASK, id.loc_mask) < 0)
         throw std::runtime_error("Failed to put local mask");
-    if (nla_put_u32(msg.get(), CONGDB_A_REM_IP, sock_data.rem_ip) < 0)
+    if (nla_put_u32(msg.get(), CONGDB_A_REM_IP, id.rem_ip) < 0)
         throw std::runtime_error("Failed to put remote ip");
-    if (nla_put_u32(msg.get(), CONGDB_A_REM_MASK, sock_data.rem_mask) < 0)
+    if (nla_put_u32(msg.get(), CONGDB_A_REM_MASK, id.rem_mask) < 0)
         throw std::runtime_error("Failed to put remote mask");
-    if (nla_put_u8(msg.get(), CONGDB_A_PRIORITY, sock_data.priority) < 0)
+    if (nla_put_u8(msg.get(), CONGDB_A_PRIORITY, id.priority) < 0)
         throw std::runtime_error("Failed to put priority");
     if (nl_send_auto(m_sock, msg.get()) < 0)
         throw std::runtime_error("Failed to send request");
@@ -137,15 +137,33 @@ congdb_data CONGDBKernelAPI::receive_entries()
             std::string ca_name{ nla_get_string(attr) };
             attr = nla_next(attr, &rem);
 
+            if (!nla_ok(attr, rem)) return -1;
+            if (nla_type(attr) != CONGDB_A_ACKS_NUM) return -1;
+            uint32_t acks_num{ nla_get_u32(attr) };
+            attr = nla_next(attr, &rem);
+
+            if (!nla_ok(attr, rem)) return -1;
+            if (nla_type(attr) != CONGDB_A_LOSS_NUM) return -1;
+            uint32_t loss_num{ nla_get_u32(attr) };
+            attr = nla_next(attr, &rem);
+
+            if (!nla_ok(attr, rem)) return -1;
+            if (nla_type(attr) != CONGDB_A_RTT) return -1;
+            uint32_t rtt{ nla_get_u32(attr) };
+            attr = nla_next(attr, &rem);
+
             congdb_entry entry;
-            entry.stats.loc_ip = loc_ip;
-            entry.stats.loc_mask = loc_mask;
-            entry.stats.rem_ip = rem_ip;
-            entry.stats.rem_mask = rem_mask;
-            entry.stats.priority = priority;
+            entry.id.loc_ip = loc_ip;
+            entry.id.loc_mask = loc_mask;
+            entry.id.rem_ip = rem_ip;
+            entry.id.rem_mask = rem_mask;
+            entry.id.priority = priority;
             entry.ca_name = (char*)malloc(ca_name.size() * sizeof(char));
             strcpy(entry.ca_name, ca_name.c_str());
-              entries.push_back(entry);
+            entry.stats.acks_num = acks_num;
+            entry.stats.loss_num = loss_num;
+            entry.stats.rtt = rtt;
+            entries.push_back(entry);
         }
 
         if (rem) return -1;

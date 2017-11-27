@@ -42,6 +42,10 @@ enum congdb_nl_attrs {
 
     CONGDB_A_CA,
 
+    CONGDB_A_ACKS_NUM,
+    CONGDB_A_LOSS_NUM,
+    CONGDB_A_RTT,
+
     // used to verify nl attributes
     __CONGDB_A_MAX,
     CONGDB_A_MAX = __CONGDB_A_MAX - 1
@@ -54,8 +58,8 @@ public:
     
     congdb_data list_entries();
     
-    void add_entry(const tcp_sock_data& sock_data, const std::string &ca_name);
-    void del_entry(const tcp_sock_data& sock_data);
+    void add_entry(const rule_id& id, const std::string &ca_name);
+    void del_entry(const rule_id& id);
     void clear_entries();
 
 private: /* methods */

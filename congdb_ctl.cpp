@@ -70,18 +70,18 @@ int add_entry(int argc, char **argv) {
             << " <local_ip> <remote_ip> <cong_algo>" << std::endl;
         return -1;
     }
-    tcp_sock_data sock_data;
+    rule_id id;
     auto loc_addr = str_to_ip_addr(argv[2]);
-    sock_data.loc_ip = loc_addr.ip;
-    sock_data.loc_mask = loc_addr.mask;
+    id.loc_ip = loc_addr.ip;
+    id.loc_mask = loc_addr.mask;
     
     auto rem_addr = str_to_ip_addr(argv[3]);
-    sock_data.rem_ip = rem_addr.ip;
-    sock_data.rem_mask = rem_addr.mask;
+    id.rem_ip = rem_addr.ip;
+    id.rem_mask = rem_addr.mask;
     
-    sock_data.priority = 0;
+    id.priority = 0;
     std::string ca_name = argv[4];
-    kernel_api.add_entry(sock_data, ca_name);
+    kernel_api.add_entry(id, ca_name);
     return 0;
 }
 
@@ -92,17 +92,17 @@ int del_entry(int argc, char **argv) {
             << " <local_ip> <remote_ip>" << std::endl;
         return -1;
     }
-    tcp_sock_data sock_data;
+    rule_id id;
     auto loc_addr = str_to_ip_addr(argv[2]);
-    sock_data.loc_ip = loc_addr.ip;
-    sock_data.loc_mask = loc_addr.mask;
+    id.loc_ip = loc_addr.ip;
+    id.loc_mask = loc_addr.mask;
     
     auto rem_addr = str_to_ip_addr(argv[3]);
-    sock_data.rem_ip = rem_addr.ip;
-    sock_data.rem_mask = rem_addr.mask;
+    id.rem_ip = rem_addr.ip;
+    id.rem_mask = rem_addr.mask;
     
-    sock_data.priority = 0;
-    kernel_api.del_entry(sock_data);
+    id.priority = 0;
+    kernel_api.del_entry(id);
     return 0;
 }
 
