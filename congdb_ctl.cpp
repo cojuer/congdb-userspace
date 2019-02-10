@@ -128,6 +128,26 @@ int del_entry(int argc, char **argv) {
     return 0;
 }
 
+constexpr auto argc_to_get = 4;
+congdb_entry get_entry(int argc, char **argv) {
+    if (argc != argc_to_del) {
+        std::cout << "Usage: " << argv[0]
+            << " <local_ip> <remote_ip>" << std::endl;
+        return congdb_entry();
+    }
+    rule_id id;
+    auto loc_addr = str_to_ip_addr(argv[2]);
+    id.loc_ip = loc_addr.ip;
+    id.loc_mask = loc_addr.mask;
+
+    auto rem_addr = str_to_ip_addr(argv[3]);
+    id.rem_ip = rem_addr.ip;
+    id.rem_mask = rem_addr.mask;
+
+    id.priority = 0;
+    return kernel_api.get_entry(id);
+}
+
 int run_db_op(int argc, char **argv) 
 {
     if (argc < 2) {
@@ -155,7 +175,7 @@ int run_db_op(int argc, char **argv)
         }
     }
     else if (cmd == "get-entry") {
-        auto entry = kernel_api.get_entry();
+        auto entry = get_entry(argc, argv);
         std::cout << std::string(entry) << std::endl;
     }
     return 0;
