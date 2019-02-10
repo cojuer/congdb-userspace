@@ -85,6 +85,28 @@ int add_entry(int argc, char **argv) {
     return 0;
 }
 
+constexpr auto argc_to_set = 5;
+int set_entry(int argc, char **argv) {
+    if (argc != argc_to_set) {
+        std::cout << "Usage: " << argv[0]
+            << " <local_ip> <remote_ip> <cong_algo>" << std::endl;
+        return -1;
+    }
+    rule_id id;
+    auto loc_addr = str_to_ip_addr(argv[2]);
+    id.loc_ip = loc_addr.ip;
+    id.loc_mask = loc_addr.mask;
+
+    auto rem_addr = str_to_ip_addr(argv[3]);
+    id.rem_ip = rem_addr.ip;
+    id.rem_mask = rem_addr.mask;
+
+    id.priority = 0;
+    std::string ca_name = argv[4];
+    kernel_api.set_entry(id, ca_name);
+    return 0;
+}
+
 constexpr auto argc_to_del = 4;
 int del_entry(int argc, char **argv) {
     if (argc != argc_to_del) {
@@ -96,11 +118,11 @@ int del_entry(int argc, char **argv) {
     auto loc_addr = str_to_ip_addr(argv[2]);
     id.loc_ip = loc_addr.ip;
     id.loc_mask = loc_addr.mask;
-    
+
     auto rem_addr = str_to_ip_addr(argv[3]);
     id.rem_ip = rem_addr.ip;
     id.rem_mask = rem_addr.mask;
-    
+
     id.priority = 0;
     kernel_api.del_entry(id);
     return 0;
@@ -120,6 +142,9 @@ int run_db_op(int argc, char **argv)
     else if (cmd == "del-entry") {
         del_entry(argc, argv);
     }
+    else if (cmd == "set-entry") {
+        set_entry(argc, argv);
+    }
     else if (cmd == "clear-entries") {
         kernel_api.clear_entries();
     }
@@ -128,6 +153,10 @@ int run_db_op(int argc, char **argv)
         for (auto& entry : entries) {
             std::cout << std::string(entry) << std::endl;
         }
+    }
+    else if (cmd == "get-entry") {
+        auto entry = kernel_api.get_entry();
+        std::cout << std::string(entry) << std::endl;
     }
     return 0;
 }
@@ -140,6 +169,8 @@ int main(int argc, char **argv) {
         {"list-entries",  congdb::run_db_op},
         {"add-entry",     congdb::run_db_op},
         {"del-entry",     congdb::run_db_op},
+        {"get-entry",     congdb::run_db_op},
+        {"set-entry",     congdb::run_db_op},
         {"clear-entries", congdb::run_db_op},
     };
 
